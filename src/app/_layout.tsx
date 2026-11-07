@@ -1,40 +1,99 @@
+
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useEffect } from 'react';
-import { ActivityIndicator, View } from 'react-native';
-import { AuthProvider, useAuth } from '../contexts/AuthContext';
+
+import {
+  ActivityIndicator,
+  View,
+} from 'react-native';
+
+import {
+  AuthProvider,
+  useAuth,
+} from '../contexts/AuthContext';
 
 function RootLayoutNav() {
   const { user, loading } = useAuth();
+
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
     if (loading) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'cadastro';
+    const rotaAtual = segments[0];
 
-    if (!user && !inAuthGroup) {
-      // Usuário não logado → manda para o login
+    const rotasPublicas = [
+      'index',
+      'login',
+      'cadastro',
+    ];
+
+    const estaEmRotaPublica =
+      rotasPublicas.includes(rotaAtual);
+
+    const estaNaAutenticacao =
+      rotaAtual === 'login' ||
+      rotaAtual === 'cadastro';
+
+    // Usuário sem login pode acessar Home, Login e Cadastro.
+    if (!user && !estaEmRotaPublica) {
       router.replace('/login');
-    } else if (user && inAuthGroup) {
-      // Usuário já logado → manda para a home
-      router.replace('/');
+      return;
     }
-  }, [user, loading, segments]);
+
+    // Se já estiver autenticado, não precisa entrar novamente.
+    if (user && estaNaAutenticacao) {
+      const tipo = String(
+        (user as any).tipoUsuario ??
+        (user as any).TipoUsuario ??
+        ''
+      ).toLowerCase();
+
+      if (tipo === 'estabelecimento') {
+        router.replace('/solicitacoes');
+      } else if (tipo === 'instituicao') {
+        router.replace('/alimentos');
+      } else {
+        router.replace('/');
+      }
+    }
+  }, [user, loading, segments, router]);
 
   if (loading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color="#1a73e8" />
+      <View
+        style={{
+          flex: 1,
+          justifyContent: 'center',
+          alignItems: 'center',
+          backgroundColor: '#f9f9f9',
+        }}
+      >
+        <ActivityIndicator
+          size="large"
+          color="#2e7d32"
+        />
       </View>
     );
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        contentStyle: {
+          backgroundColor: '#f9f9f9',
+        },
+      }}
+    >
       <Stack.Screen name="index" />
       <Stack.Screen name="login" />
       <Stack.Screen name="cadastro" />
+      <Stack.Screen name="alimentos" />
+      <Stack.Screen name="cadastrar-alimento" />
+      <Stack.Screen name="solicitacoes" />
+      <Stack.Screen name="explore" />
     </Stack>
   );
 }

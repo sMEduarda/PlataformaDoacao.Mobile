@@ -1,7 +1,8 @@
+
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_URL = 'http://192.168.101.20:5000/api';
+const API_URL = 'http://10.0.2.2:5271/api';
 
 const api = axios.create({
   baseURL: API_URL,
@@ -10,12 +11,14 @@ const api = axios.create({
   },
 });
 
-// Coloca o token JWT automaticamente
+// Adiciona automaticamente o token JWT nas requisições.
 api.interceptors.request.use(async (config) => {
   const token = await SecureStore.getItemAsync('token');
+
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 

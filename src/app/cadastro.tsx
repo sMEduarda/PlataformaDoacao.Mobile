@@ -1,219 +1,362 @@
+
 import { useRouter } from 'expo-router';
 import { useState } from 'react';
+
 import {
-    ActivityIndicator,
-    Alert,
-    ScrollView,
-    StyleSheet,
-    Text,
-    TextInput,
-    TouchableOpacity,
-    View,
+  ActivityIndicator,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
 } from 'react-native';
+
+import cores from '../constants/cores';
 import { useAuth } from '../contexts/AuthContext';
 
 export default function Cadastro() {
+  const router = useRouter();
+  const { signUp } = useAuth();
+
   const [nome, setNome] = useState('');
   const [email, setEmail] = useState('');
   const [senha, setSenha] = useState('');
-  const [tipoUsuario, setTipoUsuario] = useState<'estabelecimento' | 'instituicao'>('instituicao');
-  const [loading, setLoading] = useState(false);
-  const { signUp } = useAuth();
-  const router = useRouter();
+  const [tipoUsuario, setTipoUsuario] = useState('');
 
-  async function handleCadastro() {
-    if (!nome || !email || !senha) {
-      Alert.alert('Erro', 'Preencha todos os campos.');
+  const [enviando, setEnviando] = useState(false);
+  const [erro, setErro] = useState('');
+  const [mensagem, setMensagem] = useState('');
+
+  async function cadastrar() {
+    setErro('');
+    setMensagem('');
+
+    if (!nome.trim()) {
+      setErro('Informe seu nome.');
+      return;
+    }
+
+    if (!email.trim()) {
+      setErro('Informe seu e-mail.');
       return;
     }
 
     if (senha.length < 8) {
-      Alert.alert('Erro', 'A senha deve ter no mínimo 8 caracteres.');
+      setErro('A senha deve ter pelo menos 8 caracteres.');
+      return;
+    }
+
+    if (!tipoUsuario) {
+      setErro('Selecione o tipo de usuário.');
       return;
     }
 
     try {
-      setLoading(true);
-      await signUp(nome.trim(), email.trim().toLowerCase(), senha, tipoUsuario);
-      Alert.alert('Sucesso', 'Cadastro realizado! Faça login.', [
-        { text: 'OK', onPress: () => router.replace('/login') },
-      ]);
+      setEnviando(true);
+
+      await signUp(
+        nome.trim(),
+        email.trim(),
+        senha,
+        tipoUsuario
+      );
+
+      setMensagem('Usuário cadastrado com sucesso!');
+
+      setNome('');
+      setEmail('');
+      setSenha('');
+      setTipoUsuario('');
+
     } catch (error: any) {
-    console.log('Erro completo:', error);
-    console.log('Resposta da API:', error.response?.data);
-    console.log('Status:', error.response?.status);
+      console.error('ERRO NO CADASTRO:', error);
 
-    let mensagem = 'Não foi possível cadastrar.';
-
-    if (error.response?.data) {
-        mensagem = typeof error.response.data === 'string'
-        ? error.response.data
-        : JSON.stringify(error.response.data);
-    } else if (error.message) {
-        mensagem = error.message;
-    }
-
-    Alert.alert('Erro no cadastro', mensagem);
+      if (error.response?.status === 409) {
+        setErro('Este e-mail já está cadastrado.');
+      } else if (error.response?.status === 400) {
+        setErro('Verifique os dados informados.');
+      } else {
+        setErro(
+          'Não foi possível realizar o cadastro. Verifique se a API está rodando.'
+        );
+      }
+    } finally {
+      setEnviando(false);
     }
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>Criar Conta</Text>
-
-      <TextInput
-        style={styles.input}
-        placeholder="Nome completo"
-        placeholderTextColor="#999"
-        value={nome}
-        onChangeText={setNome}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="E-mail"
-        placeholderTextColor="#999"
-        keyboardType="email-address"
-        autoCapitalize="none"
-        value={email}
-        onChangeText={setEmail}
-      />
-
-      <TextInput
-        style={styles.input}
-        placeholder="Senha (mínimo 8 caracteres)"
-        placeholderTextColor="#999"
-        secureTextEntry
-        value={senha}
-        onChangeText={setSenha}
-      />
-
-      <Text style={styles.label}>Tipo de conta:</Text>
-
-      <View style={styles.tipoContainer}>
-        <TouchableOpacity
-          style={[
-            styles.tipoButton,
-            tipoUsuario === 'instituicao' && styles.tipoButtonActive,
-          ]}
-          onPress={() => setTipoUsuario('instituicao')}
-        >
-          <Text
-            style={[
-              styles.tipoText,
-              tipoUsuario === 'instituicao' && styles.tipoTextActive,
-            ]}
-          >
-            Instituição
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.tipoButton,
-            tipoUsuario === 'estabelecimento' && styles.tipoButtonActive,
-          ]}
-          onPress={() => setTipoUsuario('estabelecimento')}
-        >
-          <Text
-            style={[
-              styles.tipoText,
-              tipoUsuario === 'estabelecimento' && styles.tipoTextActive,
-            ]}
-          >
-            Estabelecimento
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      <TouchableOpacity
-        style={styles.button}
-        onPress={handleCadastro}
-        disabled={loading}
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
+      <ScrollView
+        contentContainerStyle={styles.conteudo}
+        keyboardShouldPersistTaps="handled"
       >
-        {loading ? (
-          <ActivityIndicator color="#fff" />
-        ) : (
-          <Text style={styles.buttonText}>Cadastrar</Text>
-        )}
-      </TouchableOpacity>
+        <View style={styles.card}>
 
-      <TouchableOpacity onPress={() => router.back()}>
-        <Text style={styles.link}>Já tem conta? Fazer login</Text>
-      </TouchableOpacity>
-    </ScrollView>
+          <Text style={styles.titulo}>
+            Criar conta
+          </Text>
+
+          <Text style={styles.subtitulo}>
+            Cadastre-se na Plataforma de Doação
+          </Text>
+
+          <TextInput
+            style={styles.input}
+            placeholder="Nome"
+            placeholderTextColor="#888"
+            value={nome}
+            onChangeText={setNome}
+            maxLength={100}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="E-mail"
+            placeholderTextColor="#888"
+            keyboardType="email-address"
+            autoCapitalize="none"
+            autoCorrect={false}
+            value={email}
+            onChangeText={setEmail}
+            maxLength={150}
+          />
+
+          <TextInput
+            style={styles.input}
+            placeholder="Senha (mínimo de 8 caracteres)"
+            placeholderTextColor="#888"
+            secureTextEntry
+            value={senha}
+            onChangeText={setSenha}
+          />
+
+          <Text style={styles.label}>
+            Tipo de usuário
+          </Text>
+
+          <View style={styles.tipoContainer}>
+
+            <TouchableOpacity
+              style={[
+                styles.tipoBotao,
+                tipoUsuario === 'estabelecimento' &&
+                  styles.tipoAtivo,
+              ]}
+              onPress={() => setTipoUsuario('estabelecimento')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.tipoTexto,
+                  tipoUsuario === 'estabelecimento' &&
+                    styles.tipoTextoAtivo,
+                ]}
+              >
+                Estabelecimento
+              </Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[
+                styles.tipoBotao,
+                tipoUsuario === 'instituicao' &&
+                  styles.tipoAtivo,
+              ]}
+              onPress={() => setTipoUsuario('instituicao')}
+              activeOpacity={0.8}
+            >
+              <Text
+                style={[
+                  styles.tipoTexto,
+                  tipoUsuario === 'instituicao' &&
+                    styles.tipoTextoAtivo,
+                ]}
+              >
+                Instituição
+              </Text>
+            </TouchableOpacity>
+
+          </View>
+
+          {erro ? (
+            <Text style={styles.erro}>
+              {erro}
+            </Text>
+          ) : null}
+
+          {mensagem ? (
+            <Text style={styles.sucesso}>
+              {mensagem}
+            </Text>
+          ) : null}
+
+          <TouchableOpacity
+            style={[
+              styles.botao,
+              enviando && styles.botaoDesabilitado,
+            ]}
+            onPress={cadastrar}
+            disabled={enviando}
+            activeOpacity={0.8}
+          >
+            {enviando ? (
+              <ActivityIndicator color={cores.branco} />
+            ) : (
+              <Text style={styles.textoBotao}>
+                Cadastrar
+              </Text>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.botaoVoltar}
+            onPress={() => router.replace('/login')}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.textoVoltar}>
+              Voltar para o login
+            </Text>
+          </TouchableOpacity>
+
+        </View>
+      </ScrollView>
+    </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
-    flexGrow: 1,
-    backgroundColor: '#f5f5f5',
-    justifyContent: 'center',
-    padding: 24,
+    flex: 1,
+    backgroundColor: cores.fundo,
   },
-  title: {
+
+  conteudo: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    padding: 22,
+  },
+
+  card: {
+    backgroundColor: cores.branco,
+    padding: 25,
+    borderRadius: 14,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.10,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+
+  titulo: {
     fontSize: 26,
     fontWeight: 'bold',
-    color: '#1a73e8',
-    textAlign: 'center',
-    marginBottom: 24,
+    color: cores.texto,
+    marginBottom: 7,
   },
+
+  subtitulo: {
+    fontSize: 14,
+    color: cores.textoSecundario,
+    marginBottom: 25,
+    lineHeight: 21,
+  },
+
   input: {
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 16,
-    fontSize: 16,
+    backgroundColor: cores.branco,
     borderWidth: 1,
-    borderColor: '#ddd',
-  },
-  label: {
+    borderColor: cores.borda,
+    padding: 15,
+    borderRadius: 9,
+    marginBottom: 14,
     fontSize: 15,
-    color: '#555',
-    marginBottom: 10,
+    color: cores.texto,
   },
+
+  label: {
+    fontSize: 14,
+    color: cores.textoSecundario,
+    marginBottom: 10,
+    fontWeight: '600',
+  },
+
   tipoContainer: {
     flexDirection: 'row',
-    marginBottom: 24,
-    gap: 12,
+    gap: 10,
+    marginBottom: 20,
   },
-  tipoButton: {
+
+  tipoBotao: {
     flex: 1,
-    padding: 14,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: '#ddd',
-    backgroundColor: '#fff',
+    paddingVertical: 13,
+    paddingHorizontal: 6,
+    borderWidth: 1.5,
+    borderColor: cores.verdePrincipal,
+    borderRadius: 9,
     alignItems: 'center',
   },
-  tipoButtonActive: {
-    backgroundColor: '#1a73e8',
-    borderColor: '#1a73e8',
+
+  tipoAtivo: {
+    backgroundColor: cores.verdePrincipal,
   },
-  tipoText: {
-    fontSize: 14,
-    color: '#555',
-  },
-  tipoTextActive: {
-    color: '#fff',
+
+  tipoTexto: {
+    color: cores.verdePrincipal,
+    fontSize: 13,
     fontWeight: 'bold',
+    textAlign: 'center',
   },
-  button: {
-    backgroundColor: '#1a73e8',
-    borderRadius: 10,
+
+  tipoTextoAtivo: {
+    color: cores.branco,
+  },
+
+  erro: {
+    color: cores.erro,
+    fontSize: 14,
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+
+  sucesso: {
+    color: cores.sucesso,
+    fontSize: 14,
+    marginBottom: 15,
+    lineHeight: 20,
+  },
+
+  botao: {
+    backgroundColor: cores.verdePrincipal,
     padding: 16,
+    borderRadius: 9,
     alignItems: 'center',
+    marginBottom: 12,
   },
-  buttonText: {
-    color: '#fff',
+
+  botaoDesabilitado: {
+    opacity: 0.7,
+  },
+
+  textoBotao: {
+    color: cores.branco,
     fontSize: 16,
     fontWeight: 'bold',
   },
-  link: {
-    marginTop: 24,
-    textAlign: 'center',
-    color: '#1a73e8',
-    fontSize: 15,
+
+  botaoVoltar: {
+    padding: 12,
+    alignItems: 'center',
+  },
+
+  textoVoltar: {
+    color: cores.verdePrincipal,
+    fontSize: 14,
+    fontWeight: 'bold',
   },
 });
